@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Retro Photobooth</title>
+<style>
+  body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Courier New', monospace;
+    height: 100%;
+  }
+
+  /* Стартовая страница */
+  #startPage {
+    background: linear-gradient(145deg, #b30000, #ff3333);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    color: #fff;
+  }
+
+  #startButton {
+    background: linear-gradient(145deg, #ccc, #888);
+    border: 2px solid #555;
+    padding: 20px 40px;
+    font-size: 24px;
+    font-weight: bold;
+    text-shadow: 1px 1px 3px #0008;
+    cursor: pointer;
+    border-radius: 10px;
+    box-shadow: 4px 4px 20px #0006, -4px -4px 20px #fff3 inset;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  #startButton:hover {
+    transform: scale(1.05);
+    box-shadow: 6px 6px 25px #0008, -6px -6px 25px #fff3 inset;
+  }
+
+  /* Фотобудка */
+  #photoboothPage {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    background: #1a1a1a;
+    color: #fff;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  h1 {
+    color: #ffe;
+    text-shadow: 1px 1px 5px #000;
+    margin-bottom: 10px;
+  }
+
+  video {
+    max-width: 100%;
+    border: 5px solid #fff;
+    border-radius: 5px;
+    box-shadow: 0 0 20px rgba(255,255,255,0.2);
+  }
+
+  #timer {
+    font-size: 5em;
+    color: #fffa;
+    position: absolute;
+    top: 40%;
+    text-shadow: 2px 2px 5px #000;
+    pointer-events: none;
+    transition: all 0.3s ease;
+  }
+
+  #photobooth {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 20px;
+  }
+
+  .strip {
+    display: flex;
+    flex-direction: column;
+    border: 5px solid #fff;
+    padding: 10px;
+    background: #fffbe0;
+    color: #000;
+    text-align: center;
+    max-width: 300px;
+    filter: drop-shadow(0 0 10px #000);
+    animation: fadeIn 1s ease forwards;
+  }
+
+  .strip img {
+    margin: 5px 0;
+    filter: grayscale(100%) contrast(120%);
+    width: 100%;
+    opacity: 0;
+    animation: photoAppear 0.5s ease forwards;
+  }
+
+  @keyframes photoAppear { to { opacity: 1; } }
+  @keyframes fadeIn { from { opacity:0; transform:scale(0.9);} to{opacity:1; transform:scale(1);} }
+
+  button {
+    padding: 12px 25px;
+    font-size: 18px;
+    margin: 10px;
+    cursor: pointer;
+    background: #fff;
+    color: #000;
+    border: none;
+    border-radius: 5px;
+    box-shadow: 2px 2px 10px #0005;
+    transition: transform 0.2s;
+  }
+  button:hover { transform: scale(1.05); }
+
+</style>
+</head>
+<body>
+
+<!-- Стартовая страница -->
+<div id="startPage">
+  <h1>Retro Photobooth</h1>
+  <button id="startButton">Start Shooting</button>
+</div>
+
+<!-- Фотобудка -->
+<div id="photoboothPage">
+  <h1>Paris Retro Photobooth</h1>
+  <div style="position: relative;">
+    <video id="video" autoplay playsinline></video>
+    <div id="timer"></div>
+  </div>
+  <button id="takePhotos">Take Photos</button>
+  <div id="photobooth"></div>
+</div>
+
+<script>
+const startButton = document.getElementById('startButton');
+const startPage = document.getElementById('startPage');
+const photoboothPage = document.getElementById('photoboothPage');
+const video = document.getElementById('video');
+const timerEl = document.getElementById('timer');
+const takePhotosBtn = document.getElementById('takePhotos');
+const photobooth = document.getElementById('photobooth');
+
+// Переход к фотобудке
+startButton.addEventListener('click', async () => {
+  startPage.style.display = 'none';
+  photoboothPage.style.display = 'flex';
+
+  // Запрос камеры
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+    video.srcObject = stream;
+  } catch (err) {
+    alert("Camera access denied");
+  }
+});
+
+// Таймер
+function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+async function countdown(seconds) {
+  for (let i = seconds; i > 0; i--) {
+    timerEl.textContent = i;
+    timerEl.style.transform = "scale(2)";
+    await sleep(300);
+    timerEl.style.transform = "scale(1)";
+    await sleep(700);
+  }
+  timerEl.textContent = "";
+}
+
+// Фотосессия
+takePhotosBtn.addEventListener('click', async () => {
+  takePhotosBtn.disabled = true;
+  const photos = [];
+
+  for (let i = 0; i < 4; i++) {
+    await countdown(3);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Ч/б + зерно + пожелтение
+    const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
+    for (let j = 0; j < imgData.data.length; j += 4) {
+      let avg = (imgData.data[j]+imgData.data[j+1]+imgData.data[j+2])/3;
+      avg *= 1.2; // контраст
+      let noise = (Math.random()-0.5)*20;
+      imgData.data[j] = avg + noise + 20;      // немного желтого
+      imgData.data[j+1] = avg + noise + 15;
+      imgData.data[j+2] = avg + noise;
+    }
+    ctx.putImageData(imgData,0,0);
+    photos.push(canvas.toDataURL('image/png'));
+  }
+
+  // Создание ленты
+  const strip = document.createElement('div');
+  strip.className = 'strip';
+  photos.forEach((src,i)=>{
+    const img = document.createElement('img');
+    img.src = src;
+    img.style.animationDelay = (i*0.3)+"s";
+    strip.appendChild(img);
+  });
+  const caption = document.createElement('div');
+  caption.textContent = "oh lucky u";
+  caption.style.fontFamily = 'Courier New, monospace';
+  caption.style.marginTop = '5px';
+  caption.style.fontSize = '18px';
+  strip.appendChild(caption);
+
+  photobooth.innerHTML = '';
+  photobooth.appendChild(strip);
+
+  // Сохранение
+  const link = document.createElement('a');
+  link.href = stripToCanvas(strip).toDataURL('image/png');
+  link.download = 'photobooth.png';
+  link.textContent = 'Save to Gallery';
+  link.style.display = 'block';
+  link.style.marginTop = '15px';
+  link.style.color = '#fff';
+  photobooth.appendChild(link);
+});
+
+// Склеивание для сохранения
+function stripToCanvas(strip) {
+  const imgs = strip.querySelectorAll('img');
+  const width = imgs[0].naturalWidth;
+  const height = imgs[0].naturalHeight * imgs.length + 30;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  imgs.forEach((img,i)=>{ ctx.drawImage(img,0,i*img.naturalHeight); });
+  ctx.fillStyle = '#000';
+  ctx.font = '20px Courier New';
+  ctx.fillText('oh lucky u',10,height-10);
+  return canvas;
+}
+</script>
+
+</body>
+</html>
